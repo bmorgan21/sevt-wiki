@@ -75,6 +75,18 @@ export function getIndex(tree: Tree): TreeIndex {
   return idx;
 }
 
+/** "Solstice / Battery / Schematics / High Voltage". Deleted or hidden places get a plain-language stand-in. */
+export function describeLocation(
+  loc: Location,
+  ctx: { index: TreeIndex; cars: Car[]; subteams: Subteam[] },
+): string {
+  const car = loc.carId === null ? 'Global' : ctx.cars.find(c => c.id === loc.carId)?.name ?? 'Unknown car';
+  const sub = ctx.subteams.find(s => s.id === loc.subteamId)?.name ?? 'Another subteam';
+  if (!loc.folderId) return `${car} / ${sub}`;
+  const chain = ctx.index.ancestry(loc.folderId).map(f => f.name);
+  return `${car} / ${sub} / ${chain.length ? chain.join(' / ') : '(deleted folder)'}`;
+}
+
 export interface Crumb { label: string; to?: string; badge?: string }
 
 export function buildCrumbs(index: TreeIndex, car: Car, subteam: Subteam | undefined, folderId: string | null, tail?: string): Crumb[] {

@@ -40,6 +40,10 @@ export interface Revision {
   title: string;
   tags: string[];
   links: PageLink[];
+  /** Where the page lived at this version (ids; the UI resolves names). */
+  carId: string | null;
+  subteamId: string;
+  folderId: string | null;
   content: string;
   createdAt: string;
   author: PersonRef;

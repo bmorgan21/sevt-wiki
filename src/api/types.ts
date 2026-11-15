@@ -36,7 +36,9 @@ export interface WikiApi {
     remove(id: string): Promise<void>;                 // soft delete: update deleted_at
     duplicate(id: string, title: string): Promise<Page>;                             // rpc('duplicate_page')
     revisions(id: string): Promise<Revision[]>;        // from('page_revisions').select().eq('page_id', id)
-    rollback(id: string, toVersion: number, expectedVersion: number): Promise<Page>; // rpc('rollback_page')
+    // rpc('rollback_page'): restores title, tags, links, text AND location as a new version.
+    // If the old folder is gone or not editable by the caller, the page keeps its current location.
+    rollback(id: string, toVersion: number, expectedVersion: number): Promise<Page>;
     search(q: string): Promise<SearchHit[]>;           // textSearch on a tsvector column
   };
 

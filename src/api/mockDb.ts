@@ -24,6 +24,9 @@ export interface RevisionRow {
   content: string;
   tags: string[];
   links: PageLink[];
+  carId: string | null;
+  subteamId: string;
+  folderId: string | null;
   createdAt: string;
   authorId: string;
   note?: string;
@@ -162,7 +165,7 @@ export function createSeedDb(): Db {
 
   type Seed = Omit<PageRow, 'version' | 'deletedAt'>;
   const addPage = (row: Seed, earlier: Array<{ content: string; at: string; by: string }> = []) => {
-    const base = { title: row.title, tags: row.tags, links: row.links };
+    const base = { title: row.title, tags: row.tags, links: row.links, carId: row.carId, subteamId: row.subteamId, folderId: row.folderId };
     const history = [
       ...earlier.map(e => ({ content: e.content, createdAt: e.at, authorId: e.by, ...base })),
       { content: row.content, createdAt: row.updatedAt, authorId: row.updatedBy, ...base },

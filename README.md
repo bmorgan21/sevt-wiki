@@ -42,7 +42,8 @@ You can also skip containers entirely: Node 20 (`.nvmrc`) and `npm install` are 
 4. A page's car/subteam always comes from its folder (use a composite FK). Global content is `car_id = null`.
 5. `tree()` returns summaries without page bodies; `pages.get` returns the body.
 6. `dev` exists only on the mock.
-7. Page links are an ordered list of `{ url, name }` (a `jsonb` column or a `page_links` table); URLs must be http(s).
+7. Every revision stores title, tags, links, text AND location (car, subteam, folder). `rollback` restores all of them; if the old folder is deleted or not editable by the caller, the text and metadata are restored but the page keeps its current location (the revision note says so).
+8. Page links are an ordered list of `{ url, name }` (a `jsonb` column or a `page_links` table); URLs must be http(s).
 
 ## Authoring notes
 

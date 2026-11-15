@@ -117,7 +117,8 @@ export function createMockApi(): WikiApi {
   const pushRevision = (p: PageRow, note?: string) => {
     db.revisions.push({
       pageId: p.id, version: p.version, title: p.title, content: p.content, tags: [...p.tags],
-      links: p.links.map(l => ({ ...l })), createdAt: p.updatedAt, authorId: p.updatedBy, note,
+      links: p.links.map(l => ({ ...l })),
+      carId: p.carId, subteamId: p.subteamId, folderId: p.folderId, createdAt: p.updatedAt, authorId: p.updatedBy, note,
     });
   };
   const checked = (input: PageInput): PageInput => {
@@ -225,7 +226,8 @@ export function createMockApi(): WikiApi {
           .filter(r => r.pageId === id)
           .sort((a, b) => b.version - a.version)
           .map(r => ({
-            version: r.version, title: r.title, tags: [...r.tags], links: r.links.map(l => ({ ...l })), content: r.content,
+            version: r.version, title: r.title, tags: [...r.tags], links: r.links.map(l => ({ ...l })),
+            carId: r.carId, subteamId: r.subteamId, folderId: r.folderId, content: r.content,
             createdAt: r.createdAt, author: personRef(r.authorId), note: r.note,
           }));
       },
@@ -238,10 +240,26 @@ export function createMockApi(): WikiApi {
         assertVersion(row, expectedVersion);
         const rev = db.revisions.find(r => r.pageId === id && r.version === toVersion);
         if (!rev) throw new ApiError('not_found', 'That version no longer exists.');
-        const loc: Location = { carId: row.carId, subteamId: row.subteamId, folderId: row.folderId };
-        if (titleTaken(loc, rev.title, row.id)) throw new ApiError('validation', `Another page is already called "${rev.title}" here.`);
-        Object.assign(row, { title: rev.title, content: rev.content, tags: [...rev.tags], links: rev.links.map(l => ({ ...l })), version: row.version + 1, updatedAt: nowIso(), updatedBy: s.user.id });
-        pushRevision(row, `Restored from v${toVersion}`);
+        const current: Location = { carId: row.carId, subteamId: row.subteamId, folderId: row.folderId };
+        // Put the page back where that version lived, if the place still exists and the caller may edit it.
+        const wanted: Location = { carId: rev.carId, subteamId: rev.subteamId, folderId: rev.folderId };
+        let target = current;
+        let placed = true;
+        if (!sameSpot(wanted, current)) {
+          try {
+            const resolved = resolveLocation(wanted);
+            if (canEditSubteam(s.user, s.memberships, resolved.subteamId)) target = resolved;
+            else placed = false;
+          } catch {
+            placed = false;
+          }
+        }
+        if (titleTaken(target, rev.title, row.id)) throw new ApiError('validation', `Another page is already called “${rev.title}” in that location.`);
+        Object.assign(row, target, {
+          title: rev.title, content: rev.content, tags: [...rev.tags], links: rev.links.map(l => ({ ...l })),
+          version: row.version + 1, updatedAt: nowIso(), updatedBy: s.user.id,
+        });
+        pushRevision(row, placed ? `Restored from v${toVersion}` : `Restored from v${toVersion} (its original location is unavailable, so the page stayed where it was)`);
         return toPage(row);
       },
 
