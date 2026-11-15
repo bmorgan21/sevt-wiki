@@ -14,8 +14,8 @@ import { useToast } from '../state/toast';
 import { useDeletePage, useDuplicatePage, usePage, useSubteams, useTree } from '../state/queries';
 import { buildCrumbs, getIndex } from '../lib/tree';
 import { fmtDateTime } from '../lib/format';
-import { getEmbed } from '../lib/embed';
-import type { Page } from '../types';
+import { getEmbed, type EmbedInfo } from '../lib/embed';
+import type { Page, PageLink } from '../types';
 
 function DuplicateDialog({ page, onClose }: { page: Page; onClose: () => void }) {
   const car = useActiveCar();
@@ -62,7 +62,7 @@ export default function PageView() {
   const { data: tree } = useTree();
   const { data: subteams = [] } = useSubteams();
   const [modal, setModal] = useState<null | 'history' | 'duplicate' | 'delete'>(null);
-  const [tab, setTab] = useState<'page' | 'doc' | null>(null);
+  const [tab, setTab] = useState<string | null>(null);
   const del = useDeletePage();
 
   if (isLoading) return <Spinner />;
@@ -72,9 +72,18 @@ export default function PageView() {
   const subteam = subteams.find(s => s.id === page.subteamId);
   const canEdit = perms.canEdit(page.subteamId);
   const hint = canEdit ? undefined : 'You need editor access in this subteam';
-  const embed = page.externalLink ? getEmbed(page.externalLink) : null;
-  // Pages with no notes open straight onto their document.
-  const activeTab = tab ?? (embed && !page.content.trim() ? 'doc' : 'page');
+  // Embeddable links become tabs; everything else becomes a link card.
+  const docs: Array<{ link: PageLink; embed: EmbedInfo }> = [];
+  const cards: PageLink[] = [];
+  for (const link of page.links) {
+    const embed = getEmbed(link.url);
+    if (embed) docs.push({ link, embed });
+    else cards.push(link);
+  }
+  // Pages with no notes open straight onto their first document.
+  const activeTab = tab ?? (docs.length > 0 && !page.content.trim() ? 'doc-0' : 'notes');
+  const activeDoc = activeTab.startsWith('doc-') ? docs[Number(activeTab.slice(4))] : undefined;
+  const showNotes = !activeDoc;
   const crumbs = tree
     ? buildCrumbs(getIndex(tree), car, subteam, page.folderId, page.title)
     : [{ label: car.name, to: `/c/${car.id}` }, { label: page.title }];
@@ -111,37 +120,45 @@ export default function PageView() {
         </div>
       </div>
 
-      {embed ? (
-        <div className="space-y-4">
-          <div role="tablist" aria-label="Page sections" className="flex gap-1 border-b border-slate-200">
-            {([['page', 'Notes'], ['doc', embed.label]] as const).map(([id, label]) => (
-              <button
-                key={id}
-                id={`tab-${id}`}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === id}
-                aria-controls={`panel-${id}`}
-                onClick={() => setTab(id)}
-                className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${activeTab === id ? 'border-red-800 text-red-800' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
-              >
-                {label}
-              </button>
-            ))}
+      <div className="space-y-4">
+        {cards.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {cards.map((l, i) => <LinkCard key={`${i}-${l.url}`} link={l} />)}
           </div>
-          <div id="panel-page" role="tabpanel" aria-labelledby="tab-page" hidden={activeTab !== 'page'}>
-            {page.content.trim() ? <Markdown source={page.content} /> : <p className="text-sm text-slate-600">This page has no notes. The document is in the other tab.</p>}
+        )}
+        {docs.length > 0 ? (
+          <div className="space-y-4">
+            <div role="tablist" aria-label="Page sections" className="flex gap-1 overflow-x-auto border-b border-slate-200">
+              {[{ id: 'notes', label: 'Notes' }, ...docs.map((d, i) => ({ id: `doc-${i}`, label: d.link.name || d.embed.label }))].map(t => {
+                const on = t.id === 'notes' ? showNotes : t.id === activeTab;
+                return (
+                  <button
+                    key={t.id}
+                    id={`tab-${t.id}`}
+                    type="button"
+                    role="tab"
+                    title={t.label}
+                    aria-selected={on}
+                    aria-controls={t.id === 'notes' ? 'panel-notes' : 'panel-doc'}
+                    onClick={() => setTab(t.id)}
+                    className={`-mb-px max-w-[16rem] shrink-0 truncate whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold ${on ? 'border-red-800 text-red-800' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden={!showNotes}>
+              {page.content.trim() ? <Markdown source={page.content} /> : <p className="text-sm text-slate-600">This page has no notes. The documents are in the other tabs.</p>}
+            </div>
+            <div id="panel-doc" role="tabpanel" aria-labelledby={`tab-${activeTab}`} hidden={showNotes}>
+              {activeDoc && <DocFrame key={activeTab} embed={activeDoc.embed} link={activeDoc.link} />}
+            </div>
           </div>
-          <div id="panel-doc" role="tabpanel" aria-labelledby="tab-doc" hidden={activeTab !== 'doc'}>
-            {activeTab === 'doc' && <DocFrame embed={embed} url={page.externalLink} />}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {page.externalLink && <LinkCard url={page.externalLink} />}
+        ) : (
           <Markdown source={page.content} />
-        </div>
-      )}
+        )}
+      </div>
 
       {modal === 'history' && <HistoryDialog page={page} canEdit={canEdit} onClose={() => setModal(null)} />}
       {modal === 'duplicate' && <DuplicateDialog page={page} onClose={() => setModal(null)} />}

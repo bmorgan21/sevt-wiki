@@ -42,6 +42,7 @@ You can also skip containers entirely: Node 20 (`.nvmrc`) and `npm install` are 
 4. A page's car/subteam always comes from its folder (use a composite FK). Global content is `car_id = null`.
 5. `tree()` returns summaries without page bodies; `pages.get` returns the body.
 6. `dev` exists only on the mock.
+7. Page links are an ordered list of `{ url, name }` (a `jsonb` column or a `page_links` table); URLs must be http(s).
 
 ## Authoring notes
 
@@ -50,9 +51,11 @@ Markdown is rendered with `react-markdown` + sanitize; there is no `dangerouslyS
 
 ## Linked documents
 
-A page's external link is embedded inline when it is a Google Doc, Sheet, Slides deck, or Drive file/folder
-(`src/lib/embed.ts`). It appears as a tab next to the page notes, in a sandboxed iframe built from a vetted URL.
-Viewers need access to the file in Google. Other links render as a link card, because most sites block framing.
+A page has an ordered list of links (`links: { url, name }[]`, up to 10). Each can have an optional display name.
+Google Docs, Sheets, Slides and Drive files/folders are embedded inline as tabs beside the page notes
+(`src/lib/embed.ts`), in a sandboxed iframe built from a vetted URL; viewers need access to the file in Google.
+Every other link renders as a link card, because most sites block framing. Names are typed by hand for now;
+a Google Picker or Drive API lookup can fill the same field later.
 
 ## Not done yet
 

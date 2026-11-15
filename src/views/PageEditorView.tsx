@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Markdown from '../components/Markdown';
 import { AccessDenied, btn, btnPrimary, ErrorPanel, inputCls, labelCls, Spinner } from '../components/ui';
@@ -11,15 +12,28 @@ import { useCreatePage, usePage, useSubteams, useTree, useUpdatePage } from '../
 import { getIndex, locationOptions, type TreeIndex } from '../lib/tree';
 import { storage } from '../lib/storage';
 import { getEmbed } from '../lib/embed';
-import { normalizeTags, validatePageInput } from '../lib/validation';
+import { LIMITS, normalizeLinks, normalizeTags, validatePageInput } from '../lib/validation';
 import type { Car, Page, PageInput, Subteam } from '../types';
 
-interface Draft { title: string; content: string; tags: string; externalLink: string; locValue: string }
+interface LinkDraft { url: string; name: string }
+interface LinkRow extends LinkDraft { id: number }
+interface Draft { title: string; content: string; tags: string; links: LinkDraft[]; locValue: string }
 
 const readDraft = (key: string): Draft | null => {
   const raw = storage.get(key);
   if (!raw) return null;
-  try { return JSON.parse(raw) as Draft; } catch { return null; }
+  try {
+    const d = JSON.parse(raw) as Partial<Draft>;
+    return {
+      title: d.title ?? '',
+      content: d.content ?? '',
+      tags: d.tags ?? '',
+      locValue: d.locValue ?? '',
+      links: Array.isArray(d.links) ? d.links.map(l => ({ url: String(l?.url ?? ''), name: String(l?.name ?? '') })) : [],
+    };
+  } catch {
+    return null;
+  }
 };
 
 interface FormProps { page?: Page; car: Car; index: TreeIndex; subteams: Subteam[] }
@@ -36,6 +50,7 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
   // The version we started from. Never changes while editing, even if the page refetches.
   const baseVersion = useRef(page?.version ?? 0);
   const saved = useRef(false);
+  const nextLinkId = useRef(1);
 
   const carContext = page?.carId ?? car.id;
   const options = useMemo(() => locationOptions(index, subteams, perms.canEdit, carContext), [index, subteams, perms, carContext]);
@@ -48,13 +63,13 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
     title: page?.title ?? '',
     content: page?.content ?? '',
     tags: page ? page.tags.join(', ') : '',
-    externalLink: page?.externalLink ?? '',
+    links: page ? page.links.map(l => ({ url: l.url, name: l.name })) : [],
     locValue: startLoc,
   });
   const [title, setTitle] = useState(initial.current.title);
   const [content, setContent] = useState(initial.current.content);
   const [tags, setTags] = useState(initial.current.tags);
-  const [externalLink, setExternalLink] = useState(initial.current.externalLink);
+  const [links, setLinks] = useState<LinkRow[]>(() => initial.current.links.map(l => ({ id: nextLinkId.current++, ...l })));
   const [locValue, setLocValue] = useState(initial.current.locValue);
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +79,13 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
   const draftKey = `sev-wiki:draft:${page?.id ?? 'new'}`;
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(() => {
     const d = readDraft(draftKey);
-    const i = initial.current;
-    const same = d && d.title === i.title && d.content === i.content && d.tags === i.tags && d.externalLink === i.externalLink && d.locValue === i.locValue;
-    return d && !same ? d : null;
+    return d && JSON.stringify(d) !== JSON.stringify(initial.current) ? d : null;
   });
 
-  const current = useMemo<Draft>(() => ({ title, content, tags, externalLink, locValue }), [title, content, tags, externalLink, locValue]);
+  const current = useMemo<Draft>(
+    () => ({ title, content, tags, locValue, links: links.map(l => ({ url: l.url, name: l.name })) }),
+    [title, content, tags, locValue, links],
+  );
   const dirty = JSON.stringify(current) !== JSON.stringify(initial.current);
 
   // Autosave a local draft so a closed tab or a failed save never loses work.
@@ -94,15 +110,24 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
     setTitle(pendingDraft.title);
     setContent(pendingDraft.content);
     setTags(pendingDraft.tags);
-    setExternalLink(pendingDraft.externalLink);
+    setLinks(pendingDraft.links.map(l => ({ id: nextLinkId.current++, ...l })));
     if (options.some(o => o.value === pendingDraft.locValue)) setLocValue(pendingDraft.locValue);
     setPendingDraft(null);
   };
   const discardDraft = () => { storage.remove(draftKey); setPendingDraft(null); };
 
+  const addLink = () => setLinks(ls => [...ls, { id: nextLinkId.current++, url: '', name: '' }]);
+  const removeLink = (id: number) => setLinks(ls => ls.filter(l => l.id !== id));
+  const editLink = (id: number, patch: Partial<LinkDraft>) => setLinks(ls => ls.map(l => (l.id === id ? { ...l, ...patch } : l)));
+
   const save = async (expected: number) => {
     setError(null);
-    const input: PageInput = { title: title.trim(), content, tags: normalizeTags(tags), externalLink: externalLink.trim() };
+    const input: PageInput = {
+      title: title.trim(),
+      content,
+      tags: normalizeTags(tags),
+      links: normalizeLinks(links.map(l => ({ url: l.url, name: l.name }))),
+    };
     const invalid = validatePageInput(input);
     if (invalid) { setError(invalid); return; }
     const opt = options.find(o => o.value === locValue);
@@ -129,11 +154,10 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
     }
   };
 
-  const embedHint = externalLink.trim() ? getEmbed(externalLink.trim()) : null;
   const onSubmit = (e: FormEvent) => { e.preventDefault(); void save(baseVersion.current); };
   const cancelTo = page ? `/c/${car.id}/p/${page.id}` : `/c/${car.id}`;
 
-  if (options.length === 0) return <AccessDenied message="You don't have editor access in any subteam yet. Ask a subteam lead to add you." />;
+  if (options.length === 0) return <AccessDenied message="You don’t have editor access in any subteam yet. Ask a subteam lead to add you." />;
 
   return (
     <form onSubmit={onSubmit} className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -185,13 +209,44 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
           <input id={`${uid}-tags`} value={tags} onChange={e => setTags(e.target.value)} className={inputCls} />
         </div>
       </div>
-      <div>
-        <label htmlFor={`${uid}-link`} className={labelCls}>External link (optional)</label>
-        <input id={`${uid}-link`} type="url" value={externalLink} onChange={e => setExternalLink(e.target.value)} className={inputCls} placeholder="https://docs.google.com/..." aria-describedby={`${uid}-link-hint`} />
-        <p id={`${uid}-link-hint`} className="mt-1 text-xs text-slate-600">
-          {embedHint ? `This will be embedded on the page as a ${embedHint.label}.` : 'Google Docs, Sheets, Slides and Drive files or folders are embedded on the page. Any other link is shown as a link card.'}
+
+      <fieldset className="space-y-3">
+        <legend className={labelCls}>Linked documents (optional)</legend>
+        <p className="text-xs text-slate-600">
+          Google Docs, Sheets, Slides and Drive files or folders are embedded on the page as tabs. Other links appear as link cards.
+          The name is shown on the tab or card; leave it blank to use a default.
         </p>
-      </div>
+        {links.length === 0 && <p className="text-sm text-slate-600">No links yet.</p>}
+        {links.map((row, i) => {
+          const url = row.url.trim();
+          const embed = url ? getEmbed(url) : null;
+          return (
+            <div key={row.id} className="rounded border border-slate-200 bg-white p-3">
+              <div className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+                <input
+                  aria-label={`Link ${i + 1} name`}
+                  value={row.name}
+                  maxLength={LIMITS.linkName}
+                  onChange={e => editLink(row.id, { name: e.target.value })}
+                  placeholder="Name, e.g. Budget workbook"
+                  className={inputCls}
+                />
+                <input
+                  aria-label={`Link ${i + 1} URL`}
+                  type="url"
+                  value={row.url}
+                  onChange={e => editLink(row.id, { url: e.target.value })}
+                  placeholder="https://docs.google.com/…"
+                  className={inputCls}
+                />
+                <button type="button" className={btn} onClick={() => removeLink(row.id)} aria-label={`Remove link ${i + 1}`}><Trash2 size={15} /></button>
+              </div>
+              {url && <p className="mt-1.5 text-xs text-slate-600">{embed ? `Embedded on the page as a ${embed.label}.` : 'Shown as a link card.'}</p>}
+            </div>
+          );
+        })}
+        <button type="button" className={btn} onClick={addLink} disabled={links.length >= LIMITS.links}><Plus size={15} />Add link</button>
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">

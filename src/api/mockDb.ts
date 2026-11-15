@@ -1,4 +1,4 @@
-import type { Car, Folder, Memberships, Profile, Subteam } from '../types';
+import type { Car, Folder, Memberships, PageLink, Profile, Subteam } from '../types';
 
 export interface FolderRow extends Folder { deletedAt: string | null }
 export interface PageRow {
@@ -9,7 +9,7 @@ export interface PageRow {
   title: string;
   content: string;
   tags: string[];
-  externalLink: string;
+  links: PageLink[];
   version: number;
   createdAt: string;
   createdBy: string;
@@ -23,7 +23,7 @@ export interface RevisionRow {
   title: string;
   content: string;
   tags: string[];
-  externalLink: string;
+  links: PageLink[];
   createdAt: string;
   authorId: string;
   note?: string;
@@ -162,7 +162,7 @@ export function createSeedDb(): Db {
 
   type Seed = Omit<PageRow, 'version' | 'deletedAt'>;
   const addPage = (row: Seed, earlier: Array<{ content: string; at: string; by: string }> = []) => {
-    const base = { title: row.title, tags: row.tags, externalLink: row.externalLink };
+    const base = { title: row.title, tags: row.tags, links: row.links };
     const history = [
       ...earlier.map(e => ({ content: e.content, createdAt: e.at, authorId: e.by, ...base })),
       { content: row.content, createdAt: row.updatedAt, authorId: row.updatedBy, ...base },
@@ -175,21 +175,24 @@ export function createSeedDb(): Db {
     {
       id: 'p-exec-1', subteamId: 'sub-exec', carId: null, folderId: 'f-exec-budget',
       title: 'FY2026 Season Budget & Sponsorship Plan', content: BUDGET,
-      tags: ['budget', 'exec', 'sponsorship'], externalLink: 'https://docs.google.com/spreadsheets/d/mock-budget-link',
+      tags: ['budget', 'exec', 'sponsorship'], links: [
+        { url: 'https://docs.google.com/spreadsheets/d/mock-budget-link', name: 'FY2026 budget workbook' },
+        { url: 'https://example.com/sponsor-tracker', name: 'Sponsor tracker' },
+      ],
       createdAt: '2026-01-15T10:00:00Z', createdBy: 'u1', updatedAt: '2026-02-01T14:30:00Z', updatedBy: 'u1',
     },
     [{ content: 'Initial budget draft.', at: '2026-01-15T10:00:00Z', by: 'u1' }],
   );
   addPage({
     id: 'p-sol-aero-root', subteamId: 'sub-aero', carId: 'car-solstice', folderId: null,
-    title: 'Aero General Guidelines', content: AERO_GUIDE, tags: ['aero', 'guidelines'], externalLink: '',
+    title: 'Aero General Guidelines', content: AERO_GUIDE, tags: ['aero', 'guidelines'], links: [],
     createdAt: '2026-02-05T09:15:00Z', createdBy: 'u2', updatedAt: '2026-02-05T09:15:00Z', updatedBy: 'u2',
   });
   addPage(
     {
       id: 'p-sol-aero-1', subteamId: 'sub-aero', carId: 'car-solstice', folderId: 'f-sol-aero-wind',
       title: 'Solstice Drag Coefficient & CFD Analysis', content: AERO_CFD,
-      tags: ['aero', 'solstice', 'cfd', 'simulation'], externalLink: 'https://drive.google.com/mock-cad-solstice',
+      tags: ['aero', 'solstice', 'cfd', 'simulation'], links: [{ url: 'https://drive.google.com/mock-cad-solstice', name: 'CAD model repository' }],
       createdAt: '2026-02-10T09:15:00Z', createdBy: 'u2', updatedAt: '2026-02-20T11:45:00Z', updatedBy: 'u3',
     },
     [{ content: 'Draft CFD results.\n\n- Drag Coefficient: 0.121', at: '2026-02-10T09:15:00Z', by: 'u2' }],
@@ -197,7 +200,7 @@ export function createSeedDb(): Db {
   addPage({
     id: 'p-sol-bat-1', subteamId: 'sub-battery', carId: 'car-solstice', folderId: 'f-sol-bat-hv',
     title: 'Battery Management System (BMS) Architecture', content: BMS,
-    tags: ['battery', 'bms', 'solstice', 'hardware'], externalLink: '',
+    tags: ['battery', 'bms', 'solstice', 'hardware'], links: [],
     createdAt: '2026-02-12T14:20:00Z', createdBy: 'u3', updatedAt: '2026-02-12T14:20:00Z', updatedBy: 'u3',
   });
 

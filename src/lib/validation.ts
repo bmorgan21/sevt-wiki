@@ -1,6 +1,6 @@
-import type { PageInput } from '../types';
+import type { PageInput, PageLink } from '../types';
 
-export const LIMITS = { title: 200, content: 200_000, tags: 20, tag: 40, folder: 100 } as const;
+export const LIMITS = { title: 200, content: 200_000, tags: 20, tag: 40, folder: 100, links: 10, linkName: 100 } as const;
 
 export function normalizeTags(raw: string | string[]): string[] {
   const parts = Array.isArray(raw) ? raw : raw.split(',');
@@ -10,6 +10,11 @@ export function normalizeTags(raw: string | string[]): string[] {
     if (t && !out.includes(t)) out.push(t);
   }
   return out;
+}
+
+/** Trims every link and drops rows that are completely blank. */
+export function normalizeLinks(raw: PageLink[]): PageLink[] {
+  return raw.map(l => ({ url: l.url.trim(), name: l.name.trim() })).filter(l => l.url || l.name);
 }
 
 /** Only http(s). Blocks javascript:, data:, etc. */
@@ -29,7 +34,15 @@ export function validatePageInput(i: PageInput): string | null {
   if (i.content.length > LIMITS.content) return 'This page is too long to save.';
   if (i.tags.length > LIMITS.tags) return `Use at most ${LIMITS.tags} tags.`;
   if (i.tags.some(t => t.length > LIMITS.tag)) return `Tags can be at most ${LIMITS.tag} characters.`;
-  if (i.externalLink && !isSafeExternalUrl(i.externalLink)) return 'The external link must start with http:// or https://.';
+  if (i.links.length > LIMITS.links) return `Add at most ${LIMITS.links} links.`;
+  const seen = new Set<string>();
+  for (const l of i.links) {
+    if (!l.url) return `Add a URL for “${l.name}”.`;
+    if (!isSafeExternalUrl(l.url)) return `“${l.url}” isn’t a valid link. Links must start with http:// or https://.`;
+    if (l.name.length > LIMITS.linkName) return `Link names can be at most ${LIMITS.linkName} characters.`;
+    if (seen.has(l.url)) return 'The same link is added more than once.';
+    seen.add(l.url);
+  }
   return null;
 }
 

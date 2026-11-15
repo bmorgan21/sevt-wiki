@@ -11,6 +11,9 @@ export type Memberships = Record<string, SubteamRole>;
 export interface Session { user: Profile; memberships: Memberships }
 export interface PersonRef { id: string; name: string }
 
+/** A linked external document. `name` is optional display text (blank = use a default label). */
+export interface PageLink { url: string; name: string }
+
 /** carId === null means "global" (shown under every car). */
 export interface Folder { id: string; carId: string | null; subteamId: string; parentId: string | null; name: string }
 
@@ -28,7 +31,7 @@ export interface PageSummary {
 }
 export interface Page extends PageSummary {
   content: string;
-  externalLink: string;
+  links: PageLink[];
   createdAt: string;
   createdBy: PersonRef;
 }
@@ -36,7 +39,7 @@ export interface Revision {
   version: number;
   title: string;
   tags: string[];
-  externalLink: string;
+  links: PageLink[];
   content: string;
   createdAt: string;
   author: PersonRef;
@@ -49,7 +52,7 @@ export interface Tree { folders: Folder[]; pages: PageSummary[] }
 /** Where something lives. folderId wins over subteamId/carId when set. */
 export interface Location { carId: string | null; subteamId: string; folderId: string | null }
 
-export interface PageInput { title: string; content: string; tags: string[]; externalLink: string }
+export interface PageInput { title: string; content: string; tags: string[]; links: PageLink[] }
 export interface PageUpdate extends PageInput { location?: Location }
 export interface SearchHit { page: PageSummary; snippet: string }
 export interface AdminUser extends Profile { memberships: Memberships }

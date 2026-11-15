@@ -8,7 +8,7 @@ import { createSeedDb, type PageRow } from './mockDb';
 import { canEditSubteam, canViewSubteam, isAdmin } from '../lib/permissions';
 import { makeExcerpt } from '../lib/text';
 import { makeSnippet, searchScore, tokenize } from '../lib/search';
-import { normalizeTags, validateFolderName, validatePageInput } from '../lib/validation';
+import { normalizeLinks, normalizeTags, validateFolderName, validatePageInput } from '../lib/validation';
 import { storage } from '../lib/storage';
 
 const LATENCY_MS = 120;
@@ -112,16 +112,16 @@ export function createMockApi(): WikiApi {
     excerpt: makeExcerpt(p.content), version: p.version, updatedAt: p.updatedAt, updatedBy: personRef(p.updatedBy),
   });
   const toPage = (p: PageRow): Page => ({
-    ...toSummary(p), content: p.content, externalLink: p.externalLink, createdAt: p.createdAt, createdBy: personRef(p.createdBy),
+    ...toSummary(p), content: p.content, links: p.links.map(l => ({ ...l })), createdAt: p.createdAt, createdBy: personRef(p.createdBy),
   });
   const pushRevision = (p: PageRow, note?: string) => {
     db.revisions.push({
       pageId: p.id, version: p.version, title: p.title, content: p.content, tags: [...p.tags],
-      externalLink: p.externalLink, createdAt: p.updatedAt, authorId: p.updatedBy, note,
+      links: p.links.map(l => ({ ...l })), createdAt: p.updatedAt, authorId: p.updatedBy, note,
     });
   };
   const checked = (input: PageInput): PageInput => {
-    const clean: PageInput = { title: input.title.trim(), content: input.content, tags: normalizeTags(input.tags), externalLink: input.externalLink.trim() };
+    const clean: PageInput = { title: input.title.trim(), content: input.content, tags: normalizeTags(input.tags), links: normalizeLinks(input.links) };
     const err = validatePageInput(clean);
     if (err) throw new ApiError('validation', err);
     return clean;
@@ -208,7 +208,7 @@ export function createMockApi(): WikiApi {
         const s = requireSession();
         const src = visiblePage(s, id);
         assertEdit(s, src.subteamId);
-        const clean = checked({ title, content: src.content, tags: src.tags, externalLink: src.externalLink });
+        const clean = checked({ title, content: src.content, tags: src.tags, links: src.links });
         const loc: Location = { carId: src.carId, subteamId: src.subteamId, folderId: src.folderId };
         if (titleTaken(loc, clean.title)) throw new ApiError('validation', 'A page with this title already exists here.');
         const at = nowIso();
@@ -225,7 +225,7 @@ export function createMockApi(): WikiApi {
           .filter(r => r.pageId === id)
           .sort((a, b) => b.version - a.version)
           .map(r => ({
-            version: r.version, title: r.title, tags: [...r.tags], externalLink: r.externalLink, content: r.content,
+            version: r.version, title: r.title, tags: [...r.tags], links: r.links.map(l => ({ ...l })), content: r.content,
             createdAt: r.createdAt, author: personRef(r.authorId), note: r.note,
           }));
       },
@@ -240,7 +240,7 @@ export function createMockApi(): WikiApi {
         if (!rev) throw new ApiError('not_found', 'That version no longer exists.');
         const loc: Location = { carId: row.carId, subteamId: row.subteamId, folderId: row.folderId };
         if (titleTaken(loc, rev.title, row.id)) throw new ApiError('validation', `Another page is already called "${rev.title}" here.`);
-        Object.assign(row, { title: rev.title, content: rev.content, tags: [...rev.tags], externalLink: rev.externalLink, version: row.version + 1, updatedAt: nowIso(), updatedBy: s.user.id });
+        Object.assign(row, { title: rev.title, content: rev.content, tags: [...rev.tags], links: rev.links.map(l => ({ ...l })), version: row.version + 1, updatedAt: nowIso(), updatedBy: s.user.id });
         pushRevision(row, `Restored from v${toVersion}`);
         return toPage(row);
       },
