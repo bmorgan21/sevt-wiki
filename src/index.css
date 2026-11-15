@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-slate-50 text-slate-800 antialiased; }
+
+/* ---- rendered markdown ---- */
+.wiki-content { font-size: 0.95rem; color: #334155; overflow-wrap: anywhere; }
+.wiki-content > *:first-child { margin-top: 0; }
+.wiki-content h1 { font-size: 1.875rem; font-weight: 800; margin: 1.5rem 0 1rem; color: #b91c1c; border-bottom: 2px solid #fee2e2; padding-bottom: 0.5rem; }
+.wiki-content h2 { font-size: 1.5rem; font-weight: 700; margin: 1.25rem 0 0.75rem; color: #1e293b; }
+.wiki-content h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #334155; }
+.wiki-content p { margin-bottom: 1rem; line-height: 1.7; }
+.wiki-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+.wiki-content ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+.wiki-content li { margin-bottom: 0.375rem; }
+.wiki-content blockquote { border-left: 4px solid #b91c1c; padding: 0.5rem 1rem; margin: 1rem 0; color: #475569; background: #fef2f2; border-radius: 0 0.375rem 0.375rem 0; }
+.wiki-content blockquote p:last-child { margin-bottom: 0; }
+.wiki-content code:not(pre code) { background: #f1f5f9; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.85em; font-family: ui-monospace, monospace; color: #be123c; }
+.wiki-content pre { background: #0d1117; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; overflow-x: auto; }
+.wiki-content pre code { background: transparent; color: #e6edf3; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+.wiki-content pre code.hljs { padding: 0; background: transparent; }
+.wiki-content table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1rem 0; }
+.wiki-content th, .wiki-content td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
+.wiki-content th { background: #f1f5f9; font-weight: 600; }
+.wiki-content a { color: #b91c1c; text-decoration: underline; font-weight: 500; }
+.wiki-content img { max-width: 100%; height: auto; }
+.wiki-content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
