@@ -48,6 +48,12 @@ You can also skip containers entirely: Node 20 (`.nvmrc`) and `npm install` are 
 Markdown is rendered with `react-markdown` + sanitize; there is no `dangerouslySetInnerHTML`.
 `$x$` and `$$x$$` are math, so write `\$` for a literal dollar sign.
 
+## Linked documents
+
+A page's external link is embedded inline when it is a Google Doc, Sheet, Slides deck, or Drive file/folder
+(`src/lib/embed.ts`). It appears as a tab next to the page notes, in a sandboxed iframe built from a vetted URL.
+Viewers need access to the file in Google. Other links render as a link card, because most sites block framing.
+
 ## Not done yet
 
 Moving pages/folders between folders, page-to-page links and backlinks, attachments/images, table of contents,

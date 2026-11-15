@@ -10,6 +10,7 @@ import { useToast } from '../state/toast';
 import { useCreatePage, usePage, useSubteams, useTree, useUpdatePage } from '../state/queries';
 import { getIndex, locationOptions, type TreeIndex } from '../lib/tree';
 import { storage } from '../lib/storage';
+import { getEmbed } from '../lib/embed';
 import { normalizeTags, validatePageInput } from '../lib/validation';
 import type { Car, Page, PageInput, Subteam } from '../types';
 
@@ -128,6 +129,7 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
     }
   };
 
+  const embedHint = externalLink.trim() ? getEmbed(externalLink.trim()) : null;
   const onSubmit = (e: FormEvent) => { e.preventDefault(); void save(baseVersion.current); };
   const cancelTo = page ? `/c/${car.id}/p/${page.id}` : `/c/${car.id}`;
 
@@ -185,7 +187,10 @@ function EditorForm({ page, car, index, subteams }: FormProps) {
       </div>
       <div>
         <label htmlFor={`${uid}-link`} className={labelCls}>External link (optional)</label>
-        <input id={`${uid}-link`} type="url" value={externalLink} onChange={e => setExternalLink(e.target.value)} className={inputCls} placeholder="https://" />
+        <input id={`${uid}-link`} type="url" value={externalLink} onChange={e => setExternalLink(e.target.value)} className={inputCls} placeholder="https://docs.google.com/..." aria-describedby={`${uid}-link-hint`} />
+        <p id={`${uid}-link-hint`} className="mt-1 text-xs text-slate-600">
+          {embedHint ? `This will be embedded on the page as a ${embedHint.label}.` : 'Google Docs, Sheets, Slides and Drive files or folders are embedded on the page. Any other link is shown as a link card.'}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">

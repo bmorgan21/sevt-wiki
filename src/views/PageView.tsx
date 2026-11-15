@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Copy, Edit3, ExternalLink, History, Lock, Trash2 } from 'lucide-react';
+import { Copy, Edit3, History, Lock, Trash2 } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Markdown from '../components/Markdown';
 import Modal, { ConfirmDialog } from '../components/Modal';
 import HistoryDialog from './HistoryDialog';
+import { DocFrame, LinkCard } from '../components/LinkedDocument';
 import { btn, btnPrimary, ErrorPanel, inputCls, labelCls, Spinner } from '../components/ui';
 import { errorMessage } from '../api';
 import { usePermissions } from '../state/auth';
@@ -13,6 +14,7 @@ import { useToast } from '../state/toast';
 import { useDeletePage, useDuplicatePage, usePage, useSubteams, useTree } from '../state/queries';
 import { buildCrumbs, getIndex } from '../lib/tree';
 import { fmtDateTime } from '../lib/format';
+import { getEmbed } from '../lib/embed';
 import type { Page } from '../types';
 
 function DuplicateDialog({ page, onClose }: { page: Page; onClose: () => void }) {
@@ -60,6 +62,7 @@ export default function PageView() {
   const { data: tree } = useTree();
   const { data: subteams = [] } = useSubteams();
   const [modal, setModal] = useState<null | 'history' | 'duplicate' | 'delete'>(null);
+  const [tab, setTab] = useState<'page' | 'doc' | null>(null);
   const del = useDeletePage();
 
   if (isLoading) return <Spinner />;
@@ -69,6 +72,9 @@ export default function PageView() {
   const subteam = subteams.find(s => s.id === page.subteamId);
   const canEdit = perms.canEdit(page.subteamId);
   const hint = canEdit ? undefined : 'You need editor access in this subteam';
+  const embed = page.externalLink ? getEmbed(page.externalLink) : null;
+  // Pages with no notes open straight onto their document.
+  const activeTab = tab ?? (embed && !page.content.trim() ? 'doc' : 'page');
   const crumbs = tree
     ? buildCrumbs(getIndex(tree), car, subteam, page.folderId, page.title)
     : [{ label: car.name, to: `/c/${car.id}` }, { label: page.title }];
@@ -90,9 +96,6 @@ export default function PageView() {
               <span>Created by <b className="font-semibold text-slate-800">{page.createdBy.name}</b></span>
               <span>Updated by <b className="font-semibold text-slate-800">{page.updatedBy.name}</b>, {fmtDateTime(page.updatedAt)}</span>
               <span>Version <b className="font-semibold text-red-800">{page.version}</b></span>
-              {page.externalLink && (
-                <a href={page.externalLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-red-800 hover:underline"><ExternalLink size={13} />External document</a>
-              )}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -108,7 +111,37 @@ export default function PageView() {
         </div>
       </div>
 
-      <Markdown source={page.content} />
+      {embed ? (
+        <div className="space-y-4">
+          <div role="tablist" aria-label="Page sections" className="flex gap-1 border-b border-slate-200">
+            {([['page', 'Notes'], ['doc', embed.label]] as const).map(([id, label]) => (
+              <button
+                key={id}
+                id={`tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                aria-controls={`panel-${id}`}
+                onClick={() => setTab(id)}
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${activeTab === id ? 'border-red-800 text-red-800' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div id="panel-page" role="tabpanel" aria-labelledby="tab-page" hidden={activeTab !== 'page'}>
+            {page.content.trim() ? <Markdown source={page.content} /> : <p className="text-sm text-slate-600">This page has no notes. The document is in the other tab.</p>}
+          </div>
+          <div id="panel-doc" role="tabpanel" aria-labelledby="tab-doc" hidden={activeTab !== 'doc'}>
+            {activeTab === 'doc' && <DocFrame embed={embed} url={page.externalLink} />}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {page.externalLink && <LinkCard url={page.externalLink} />}
+          <Markdown source={page.content} />
+        </div>
+      )}
 
       {modal === 'history' && <HistoryDialog page={page} canEdit={canEdit} onClose={() => setModal(null)} />}
       {modal === 'duplicate' && <DuplicateDialog page={page} onClose={() => setModal(null)} />}
