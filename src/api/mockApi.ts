@@ -1,10 +1,10 @@
 import type {
-  AdminUser, Car, Folder, Location, Page, PageInput, PageSummary, PageUpdate, PersonRef, Profile,
+  AdminUser, Car, Folder, Invitation, Location, Page, PageInput, PageSummary, PageUpdate, PersonRef, Profile,
   Revision, SearchHit, Session, Subteam, SubteamRole, SystemRole, Tree, UserStatus,
 } from '../types';
 import type { WikiApi } from './types';
 import { ApiError } from './errors';
-import { createSeedDb, type PageRow } from './mockDb';
+import { createSeedDb, type InviteRow, type PageRow } from './mockDb';
 import { canEditSubteam, canViewSubteam, isAdmin } from '../lib/permissions';
 import { makeExcerpt } from '../lib/text';
 import { makeSnippet, searchScore, tokenize } from '../lib/search';
@@ -128,6 +128,11 @@ export function createMockApi(): WikiApi {
     return clean;
   };
 
+  const toInvitation = (i: InviteRow): Invitation => ({
+    id: i.id, email: i.email, name: i.name, invitedBy: i.invitedBy ? personRef(i.invitedBy) : null,
+    createdAt: i.createdAt, expiresAt: i.expiresAt, acceptedAt: i.acceptedAt,
+  });
+
   const api: WikiApi = {
     isMock: true,
 
@@ -135,8 +140,20 @@ export function createMockApi(): WikiApi {
       async getSession() { await wait(); return currentSession(); },
       async signInWithEmail(email) {
         await wait();
-        signInProfile(db.profiles.find(p => p.email.toLowerCase() === email.trim().toLowerCase()));
+        const e = email.trim().toLowerCase();
+        let profile = db.profiles.find(p => p.email.toLowerCase() === e);
+        if (!profile) {
+          // Mirrors the database gate: an open invitation creates the account on first sign-in.
+          const inv = db.invitations.find(i => i.email === e && !i.acceptedAt && Date.parse(i.expiresAt) > Date.now());
+          if (!inv) throw new ApiError('auth', 'No account or invitation uses that email.');
+          profile = { id: newId('u'), name: inv.name || e.split('@')[0], email: e, systemRole: inv.systemRole, status: 'active' };
+          db.profiles.push(profile);
+          db.memberships[profile.id] = {};
+          inv.acceptedAt = nowIso();
+        }
+        signInProfile(profile);
       },
+      async verifyEmailCode() { /* the mock signs in immediately, so there is nothing to verify */ },
       async signOut() { await wait(); setUser(null); },
       onChange(cb) { listeners.add(cb); return () => { listeners.delete(cb); }; },
     },
@@ -365,6 +382,49 @@ export function createMockApi(): WikiApi {
         const sub = subteamOf(subteamId);
         if (!sub) throw new ApiError('not_found', 'Subteam not found.');
         sub.restricted = restricted;
+      },
+    },
+
+    invitations: {
+      async list() {
+        await wait();
+        const s = requireSession();
+        return db.invitations
+          .filter(i => isAdmin(s.user) || i.invitedBy === s.user.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          .map(toInvitation);
+      },
+      async create(email, name) {
+        await wait();
+        const s = requireSession();
+        const e = email.trim().toLowerCase();
+        if (e.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new ApiError('validation', 'Enter a valid email address.');
+        if (db.profiles.some(p => p.email.toLowerCase() === e)) throw new ApiError('validation', 'That person already has an account.');
+        const open = db.invitations.find(i => i.email === e && !i.acceptedAt);
+        const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+        if (open) {
+          if (name.trim()) open.name = name.trim().slice(0, 100);
+          open.expiresAt = expiresAt;
+          open.invitedBy = s.user.id;
+          return toInvitation(open);
+        }
+        if (!isAdmin(s.user) && db.invitations.filter(i => i.invitedBy === s.user.id && !i.acceptedAt).length >= 25) {
+          throw new ApiError('validation', 'You have 25 invitations waiting. Revoke some or wait for people to join.');
+        }
+        const row: InviteRow = {
+          id: newId('inv'), email: e, name: name.trim().slice(0, 100), systemRole: 'user',
+          invitedBy: s.user.id, createdAt: nowIso(), expiresAt, acceptedAt: null,
+        };
+        db.invitations.push(row);
+        return toInvitation(row);
+      },
+      async revoke(id) {
+        await wait();
+        const s = requireSession();
+        const i = db.invitations.find(x => x.id === id && !x.acceptedAt);
+        if (!i) throw new ApiError('not_found', 'Invitation not found.');
+        if (i.invitedBy !== s.user.id && !isAdmin(s.user)) throw new ApiError('forbidden', 'Only the person who invited them, or an admin, can revoke this.');
+        db.invitations.splice(db.invitations.indexOf(i), 1);
       },
     },
 

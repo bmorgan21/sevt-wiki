@@ -1,5 +1,5 @@
 import type {
-  AdminUser, Car, Folder, Location, Page, PageInput, PageUpdate, Profile, Revision,
+  AdminUser, Car, Folder, Invitation, Location, Page, PageInput, PageUpdate, Profile, Revision,
   SearchHit, Session, Subteam, SubteamRole, SystemRole, Tree, UserStatus,
 } from '../types';
 
@@ -17,7 +17,11 @@ export interface WikiApi {
 
   auth: {
     getSession(): Promise<Session | null>;             // supabase.auth.getSession() + profiles/memberships select
+    /** Emails a 6-digit code. Must look the same whether or not the address is invited (no account enumeration). */
     signInWithEmail(email: string): Promise<void>;     // supabase.auth.signInWithOtp({ email })
+    verifyEmailCode(email: string, code: string): Promise<void>; // supabase.auth.verifyOtp({ email, token, type: 'email' })
+    /** One-time message for the login screen (expired link, deactivated account...). */
+    takeNotice?(): string | null;
     signOut(): Promise<void>;                          // supabase.auth.signOut()
     onChange(cb: (s: Session | null) => void): () => void; // supabase.auth.onAuthStateChange
   };
@@ -54,6 +58,12 @@ export interface WikiApi {
     setUserStatus(userId: string, status: UserStatus): Promise<void>;
     setSystemRole(userId: string, role: SystemRole): Promise<void>;
     setSubteamRestricted(subteamId: string, restricted: boolean): Promise<void>;
+  };
+
+  invitations: {
+    list(): Promise<Invitation[]>;                     // RLS: admins see all, others see their own
+    create(email: string, name: string): Promise<Invitation>; // rpc('invite_user')
+    revoke(id: string): Promise<void>;                 // rpc('revoke_invitation')
   };
 
   /** Only the mock provides this. Never ship it against a real backend. */

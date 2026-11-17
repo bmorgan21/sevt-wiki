@@ -31,7 +31,18 @@ export interface RevisionRow {
   authorId: string;
   note?: string;
 }
+export interface InviteRow {
+  id: string;
+  email: string;
+  name: string;
+  systemRole: 'admin' | 'user';
+  invitedBy: string | null;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}
 export interface Db {
+  invitations: InviteRow[];
   cars: Car[];
   subteams: Subteam[];
   profiles: Profile[];
@@ -41,6 +52,7 @@ export interface Db {
   revisions: RevisionRow[];
 }
 
+export function createSeedDb(): Db {
 const F = '```';
 
 const BUDGET = String.raw`Welcome to the confidential executive overview for the **Solar Electric Vehicle** team.
@@ -125,7 +137,6 @@ ${F}
 
 Make sure to review the wiring harness schematic before soldering.`;
 
-export function createSeedDb(): Db {
   const db: Db = {
     cars: [
       { id: 'car-solstice', name: 'Solstice', status: 'Active' },
@@ -153,6 +164,7 @@ export function createSeedDb(): Db {
       u4: { 'sub-ops': 'viewer' },
       u5: {},
     },
+    invitations: [],
     folders: [
       { id: 'f-exec-budget', carId: null, subteamId: 'sub-exec', parentId: null, name: 'Budgets & Financials', deletedAt: null },
       { id: 'f-sol-aero-wind', carId: 'car-solstice', subteamId: 'sub-aero', parentId: null, name: 'Wind Tunnel Data', deletedAt: null },

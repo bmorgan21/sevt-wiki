@@ -10,8 +10,7 @@
     "vscode": {
       "extensions": [
         "bradlc.vscode-tailwindcss",
-        "dbaeumer.vscode-eslint",
-        "lfs.vscode-emacs-friendly"
+        "dbaeumer.vscode-eslint"
       ],
       "settings": {
         "editor.formatOnSave": false,

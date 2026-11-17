@@ -7,6 +7,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: env.VITE_BASE || '/',
     plugins: [react()],
+    // true only for `npm run dev:mock` (mode "mock"): production builds drop the mock and its demo data.
+    define: { __USE_MOCK__: JSON.stringify(env.VITE_BACKEND === 'mock') },
     // host: true lets Codespaces / dev containers forward the port to your browser
     server: { host: true, port: 5173 },
   };

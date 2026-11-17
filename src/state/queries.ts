@@ -11,6 +11,7 @@ export const usePage = (id: string | undefined) =>
 export const useRevisions = (id: string) => useQuery({ queryKey: ['revisions', id], queryFn: () => api.pages.revisions(id) });
 export const useSearch = (q: string) =>
   useQuery({ queryKey: ['search', q], queryFn: () => api.pages.search(q), enabled: q.trim().length >= 2 });
+export const useInvitations = () => useQuery({ queryKey: ['invitations'], queryFn: () => api.invitations.list() });
 export const useAdminUsers = (enabled: boolean) =>
   useQuery({ queryKey: ['admin', 'users'], queryFn: () => api.admin.users(), enabled });
 
@@ -50,6 +51,11 @@ export const useRenameFolder = () =>
   useApiMutation((v: { id: string; name: string }) => api.folders.rename(v.id, v.name), () => [['tree']]);
 export const useDeleteFolder = () =>
   useApiMutation((id: string) => api.folders.remove(id), () => [['tree'], ['search']]);
+
+export const useCreateInvitation = () =>
+  useApiMutation((v: { email: string; name: string }) => api.invitations.create(v.email, v.name), () => [['invitations']]);
+export const useRevokeInvitation = () =>
+  useApiMutation((id: string) => api.invitations.revoke(id), () => [['invitations']]);
 
 const adminKeys = (): QueryKey[] => [['admin', 'users'], ['subteams'], ['tree']];
 export const useSetMemberRole = () =>

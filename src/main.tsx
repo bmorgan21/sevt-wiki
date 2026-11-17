@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import { ApiError } from './api';
+import { ApiError, configError } from './api';
 import { AuthProvider } from './state/auth';
 import { ToastProvider } from './state/toast';
 import './index.css';
@@ -19,7 +19,17 @@ const queryClient = new QueryClient({
 });
 
 // HashRouter: GitHub Pages has no server-side rewrites, so deep links live after the #.
-createRoot(document.getElementById('root') as HTMLElement).render(
+const root = createRoot(document.getElementById('root') as HTMLElement);
+
+if (configError) {
+  root.render(
+    <main style={{ maxWidth: 560, margin: '15vh auto', padding: 24, fontFamily: 'system-ui, sans-serif', lineHeight: 1.5 }}>
+      <h1 style={{ fontSize: 22 }}>Backend not configured</h1>
+      <p>{configError}</p>
+    </main>,
+  );
+} else {
+  root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -31,4 +41,5 @@ createRoot(document.getElementById('root') as HTMLElement).render(
       </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
-);
+  );
+}

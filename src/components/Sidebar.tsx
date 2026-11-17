@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, FileText, Folder, Globe, LogOut, Lock, Search, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Folder, Globe, LogOut, Lock, Search, Settings, UserPlus } from 'lucide-react';
 import { api } from '../api';
 import { useAuth, usePermissions } from '../state/auth';
 import { useActiveCar } from '../state/car';
@@ -217,6 +217,9 @@ export default function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }
       </nav>
 
       <div className="border-t border-slate-200 bg-slate-50 p-3">
+        <Link to="/invite" className="mb-3 flex items-center gap-2 rounded px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200">
+          <UserPlus size={15} aria-hidden />Invite a teammate
+        </Link>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-slate-900">{session?.user.name}</div>

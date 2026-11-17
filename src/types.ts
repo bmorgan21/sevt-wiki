@@ -60,3 +60,14 @@ export interface PageInput { title: string; content: string; tags: string[]; lin
 export interface PageUpdate extends PageInput { location?: Location }
 export interface SearchHit { page: PageSummary; snippet: string }
 export interface AdminUser extends Profile { memberships: Memberships }
+
+/** Someone who may sign up. `acceptedAt` is set once they have joined. */
+export interface Invitation {
+  id: string;
+  email: string;
+  name: string;
+  invitedBy: PersonRef | null;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}

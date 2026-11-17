@@ -8,6 +8,7 @@ interface AuthValue {
   session: Session | null;
   loading: boolean;
   signIn: (email: string) => Promise<void>;
+  verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 const AuthCtx = createContext<AuthValue | null>(null);
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
     signIn: email => api.auth.signInWithEmail(email),
+    verifyCode: (email, code) => api.auth.verifyEmailCode(email, code),
     signOut: () => api.auth.signOut(),
   }), [session, loading]);
 

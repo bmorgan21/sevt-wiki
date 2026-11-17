@@ -10,6 +10,7 @@ import PageView from './views/PageView';
 import PageEditorView from './views/PageEditorView';
 import SearchView from './views/SearchView';
 import AdminView from './views/AdminView';
+import InviteView from './views/InviteView';
 
 function RequireAuth() {
   const { session, loading } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<DefaultCarRedirect />} />
           <Route path="/admin" element={<AdminView />} />
+          <Route path="/invite" element={<InviteView />} />
           <Route path="/c/:carId" element={<HomeView />} />
           <Route path="/c/:carId/s/:subteamId" element={<FolderView />} />
           <Route path="/c/:carId/f/:folderId" element={<FolderView />} />
