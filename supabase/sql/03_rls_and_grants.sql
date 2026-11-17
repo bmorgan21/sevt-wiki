@@ -77,7 +77,7 @@ grant  execute on function
   public.admin_set_user_status(uuid, public.user_status),
   public.admin_set_system_role(uuid, public.system_role),
   public.admin_set_subteam_restricted(text, boolean),
-  public.invite_user(text, text),
+  public.invite_user(text, text, jsonb),
   public.revoke_invitation(uuid)
 to authenticated;
 -- search_pages / make_excerpt run as the caller; make_excerpt is a pure text helper.

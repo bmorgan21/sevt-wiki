@@ -1,4 +1,4 @@
-import type { Car, Folder, Memberships, PageLink, Profile, Subteam } from '../types';
+import type { Car, Folder, Memberships, PageLink, Profile, Subteam, SubteamRole } from '../types';
 
 export interface FolderRow extends Folder { deletedAt: string | null }
 export interface PageRow {
@@ -37,6 +37,7 @@ export interface InviteRow {
   name: string;
   systemRole: 'admin' | 'user';
   invitedBy: string | null;
+  roles: Record<string, SubteamRole>;
   createdAt: string;
   expiresAt: string;
   acceptedAt: string | null;

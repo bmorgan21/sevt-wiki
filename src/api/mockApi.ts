@@ -5,7 +5,7 @@ import type {
 import type { WikiApi } from './types';
 import { ApiError } from './errors';
 import { createSeedDb, type InviteRow, type PageRow } from './mockDb';
-import { canEditSubteam, canViewSubteam, isAdmin } from '../lib/permissions';
+import { canEditSubteam, canInvite, canViewSubteam, isAdmin } from '../lib/permissions';
 import { makeExcerpt } from '../lib/text';
 import { makeSnippet, searchScore, tokenize } from '../lib/search';
 import { normalizeLinks, normalizeTags, validateFolderName, validatePageInput } from '../lib/validation';
@@ -130,7 +130,7 @@ export function createMockApi(): WikiApi {
 
   const toInvitation = (i: InviteRow): Invitation => ({
     id: i.id, email: i.email, name: i.name, invitedBy: i.invitedBy ? personRef(i.invitedBy) : null,
-    createdAt: i.createdAt, expiresAt: i.expiresAt, acceptedAt: i.acceptedAt,
+    roles: { ...i.roles }, createdAt: i.createdAt, expiresAt: i.expiresAt, acceptedAt: i.acceptedAt,
   });
 
   const api: WikiApi = {
@@ -148,7 +148,7 @@ export function createMockApi(): WikiApi {
           if (!inv) throw new ApiError('auth', 'No account or invitation uses that email.');
           profile = { id: newId('u'), name: inv.name || e.split('@')[0], email: e, systemRole: inv.systemRole, status: 'active' };
           db.profiles.push(profile);
-          db.memberships[profile.id] = {};
+          db.memberships[profile.id] = Object.fromEntries(Object.entries(inv.roles).filter(([id]) => subteamOf(id)));
           inv.acceptedAt = nowIso();
         }
         signInProfile(profile);
@@ -394,18 +394,35 @@ export function createMockApi(): WikiApi {
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
           .map(toInvitation);
       },
-      async create(email, name) {
+      async create(email, name, roles) {
         await wait();
         const s = requireSession();
+        if (!canInvite(s.user, s.memberships)) throw new ApiError('forbidden', 'Only admins and subteam leads can invite people.');
         const e = email.trim().toLowerCase();
         if (e.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new ApiError('validation', 'Enter a valid email address.');
         if (db.profiles.some(p => p.email.toLowerCase() === e)) throw new ApiError('validation', 'That person already has an account.');
+        // Admins may grant any role on any subteam; everyone else only on subteams they lead.
+        const canAssign = (subteamId: string) => isAdmin(s.user) || s.memberships[subteamId] === 'lead';
+        const clean: Record<string, SubteamRole> = {};
+        for (const [subteamId, role] of Object.entries(roles ?? {})) {
+          if (!role) continue;
+          if (!['viewer', 'editor', 'lead'].includes(role)) throw new ApiError('validation', 'Choose viewer, editor or lead.');
+          if (!subteamOf(subteamId)) throw new ApiError('validation', 'That subteam doesn’t exist.');
+          if (!canAssign(subteamId)) throw new ApiError('forbidden', 'You can only invite people to subteams you lead.');
+          clean[subteamId] = role;
+        }
         const open = db.invitations.find(i => i.email === e && !i.acceptedAt);
         const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
         if (open) {
+          if (open.invitedBy !== s.user.id && !isAdmin(s.user)) {
+            throw new ApiError('forbidden', 'Someone else has already invited that address. Ask them, or an admin, to change the invitation.');
+          }
+          // Replace the roles this person may manage; keep any they may not (e.g. set earlier by an admin).
+          const merged = { ...clean };
+          for (const [k, v] of Object.entries(open.roles)) if (!canAssign(k)) merged[k] = v;
           if (name.trim()) open.name = name.trim().slice(0, 100);
+          open.roles = merged;
           open.expiresAt = expiresAt;
-          open.invitedBy = s.user.id;
           return toInvitation(open);
         }
         if (!isAdmin(s.user) && db.invitations.filter(i => i.invitedBy === s.user.id && !i.acceptedAt).length >= 25) {
@@ -413,7 +430,7 @@ export function createMockApi(): WikiApi {
         }
         const row: InviteRow = {
           id: newId('inv'), email: e, name: name.trim().slice(0, 100), systemRole: 'user',
-          invitedBy: s.user.id, createdAt: nowIso(), expiresAt, acceptedAt: null,
+          invitedBy: s.user.id, roles: clean, createdAt: nowIso(), expiresAt, acceptedAt: null,
         };
         db.invitations.push(row);
         return toInvitation(row);

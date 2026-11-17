@@ -32,6 +32,10 @@ Open **SQL Editor → New query**. For each file below, paste the whole file, cl
 | 3 | `supabase/sql/03_rls_and_grants.sql` | Turns on RLS, read policies, removes direct write access |
 | 4 | `supabase/sql/04_seed_catalog.sql` | Your cars and subteams. **Edit the names first** if you want |
 
+**Already set up the database earlier?** Don't re-run 01 to 03. Run the upgrade scripts you haven't yet, in order:
+`07_upgrade_invitation_roles.sql` (subteam roles on invitations), then `08_upgrade_invite_leads_only.sql` (only admins and
+leads may invite). Both are safe to run once. Fresh installs skip them (01 to 03 already include everything).
+
 Made a mistake on a throwaway project? `supabase/sql/99_reset_DEV_ONLY.sql` wipes it so you can start again. Never run it on real data.
 
 ## 3. Configure sign-in (Authentication)
@@ -85,26 +89,38 @@ Try the UI with no backend at any time: `npm run dev:mock`.
 
 1. Open the site (or `npm run dev`), enter your email, and click **Email me a code**.
 2. Type the 6-digit code. Your account is created with admin rights.
-3. Open **Invite a teammate** in the sidebar to add people. Invitations are not emailed automatically: the page gives you a
-   message to copy and send. They enter their email on the login page and get a code.
+3. Open **Invite a teammate** in the sidebar to add people and, optionally, give them subteam roles (viewer, editor or lead)
+   that are applied the moment they sign up. Invitations are not emailed automatically: the page gives you a message to copy
+   and send. They enter their email on the login page and get a code.
 4. Use the **gear icon (Admin)** to give people editor/lead roles and to grant access to restricted subteams.
 
 ## Day-to-day operations
 
 | I want to… | Do this |
 |---|---|
-| Add someone | Sidebar → Invite a teammate. Any active member can invite (see "Policy knobs") |
+| Add someone | Admins and subteam leads: sidebar → Invite a teammate, and pick their subteam roles (see "Who can invite") |
 | Make someone an admin | Admin page → Site role. Or in SQL: `update public.profiles set system_role = 'admin' where lower(email) = 'them@example.com';` |
 | Remove someone's access | Admin page → Deactivate (instant: their data access stops on the next request) |
 | Delete a person entirely | **Authentication → Users → Delete user** (their profile and memberships go with them; pages they wrote stay, attributed to "Former member") |
 | Rename / add a car or subteam | Edit rows in **Table Editor → cars / subteams**, or run an `insert`/`update` in the SQL Editor |
 | Lost all admins | Delete the old user in Authentication → Users, then run `05_bootstrap_first_admin.sql` again |
 
+## Who can invite
+
+**Only admins and subteam leads** can invite people. The "Invite a teammate" link is hidden for everyone else, and the
+database refuses the request even if someone calls it directly. When inviting, **admins can give any role (viewer, editor, lead) on any subteam**. **Everyone else can only give roles on
+subteams they lead.** This is enforced in the database (`invite_user`), not just hidden in the form. Other rules:
+
+- Re-inviting an address that already has a pending invitation updates it. Only the person who created it, or an admin, can
+  change it. A lead's edit replaces only the roles on subteams they lead, so roles an admin added elsewhere are kept.
+- Roles are applied when the invitee first signs in. Changing an invitation after that has no effect; use the Admin page.
+- If someone stops being a lead, they can no longer invite, but invitations they already sent stay valid and they can still revoke them.
+
 ## Policy knobs
 
-- **Who may invite:** `public.can_invite()` in `02_functions.sql` currently lets any active member invite. The new person
-  only sees *unrestricted* subteams until an admin gives them roles. To limit invites to admins and subteam leads, replace its
-  body with the commented alternative in that function and re-run just that function.
+- **Who may invite:** `public.can_invite()` in `02_functions.sql` allows admins and leads of any subteam. To let any active
+  member invite instead, replace its body with `select public.is_active_member();` (the comment above it says so) and re-run just
+  that function. People invited without roles only see *unrestricted* subteams until a lead or admin gives them roles.
 - **Who can see the team directory:** all active members can see each other's names and emails (needed for "edited by").
 - **Invitation expiry:** 30 days, set where `invitations.expires_at` defaults in `01_schema.sql`.
 

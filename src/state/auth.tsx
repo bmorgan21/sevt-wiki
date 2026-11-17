@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import type { Session, Subteam } from '../types';
-import { canEditSubteam, canViewSubteam, isAdmin } from '../lib/permissions';
+import { canEditSubteam, canInvite, canViewSubteam, isAdmin } from '../lib/permissions';
 
 interface AuthValue {
   session: Session | null;
@@ -54,6 +54,7 @@ export function usePermissions() {
   const { session } = useAuth();
   return useMemo(() => ({
     isAdmin: !!session && isAdmin(session.user),
+    canInvite: !!session && canInvite(session.user, session.memberships),
     canView: (sub: Subteam) => !!session && canViewSubteam(session.user, session.memberships, sub),
     canEdit: (subteamId: string) => !!session && canEditSubteam(session.user, session.memberships, subteamId),
     roleIn: (subteamId: string) => session?.memberships[subteamId] ?? null,

@@ -24,7 +24,7 @@ interface RevisionRow {
 interface FolderRow { id: string; car_id: string | null; subteam_id: string; parent_id: string | null; name: string }
 interface ProfileRow { id: string; email: string; name: string; system_role: SystemRole; status: UserStatus }
 interface InvitationRow {
-  id: string; email: string; name: string; created_at: string; expires_at: string; accepted_at: string | null;
+  id: string; email: string; name: string; roles: Record<string, SubteamRole> | null; created_at: string; expires_at: string; accepted_at: string | null;
   invited_by: PersonRow | null;
 }
 interface SearchRow {
@@ -43,7 +43,7 @@ const REVISION_COLS =
   'version,title,content,tags,links,car_id,subteam_id,folder_id,note,created_at,author:profiles!page_revisions_author_id_fkey(id,name)';
 const FOLDER_COLS = 'id,car_id,subteam_id,parent_id,name';
 const INVITATION_COLS =
-  'id,email,name,created_at,expires_at,accepted_at,invited_by:profiles!invitations_invited_by_fkey(id,name)';
+  'id,email,name,roles,created_at,expires_at,accepted_at,invited_by:profiles!invitations_invited_by_fkey(id,name)';
 
 const person = (p: PersonRow | null): PersonRef => p ?? { id: '', name: 'Former member' };
 const cleanLinks = (links: PageLink[] | null): PageLink[] =>
@@ -68,7 +68,7 @@ const toProfile = (r: ProfileRow): Profile => ({
   id: r.id, email: r.email, name: r.name, systemRole: r.system_role, status: r.status,
 });
 const toInvitation = (r: InvitationRow): Invitation => ({
-  id: r.id, email: r.email, name: r.name, invitedBy: r.invited_by, createdAt: r.created_at,
+  id: r.id, email: r.email, name: r.name, invitedBy: r.invited_by, roles: r.roles ?? {}, createdAt: r.created_at,
   expiresAt: r.expires_at, acceptedAt: r.accepted_at,
 });
 
@@ -356,8 +356,8 @@ export function createSupabaseApi(url: string, anonKey: string): WikiApi {
         )) ?? []) as unknown as InvitationRow[];
         return rows.map(toInvitation);
       },
-      async create(email, name) {
-        const id = (await rpc('invite_user', { p_email: email, p_name: name })) as string;
+      async create(email, name, roles) {
+        const id = (await rpc('invite_user', { p_email: email, p_name: name, p_roles: roles })) as string;
         return invitationById(id);
       },
       async revoke(id) { await rpc('revoke_invitation', { p_id: id }); },

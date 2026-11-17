@@ -51,6 +51,8 @@ Routing uses `HashRouter` because Pages has no server-side rewrites. Production 
 6. Every revision stores title, tags, links, text and location. `rollback` restores all of them; if the old folder is gone or
    not editable by the caller, the page keeps its location and the revision note says so.
 7. Page links are an ordered list of `{ url, name }` (max 10); URLs must be http(s).
+   Only admins and subteam leads may invite. Invitations carry `roles` (subteam id -> role) applied at sign-up: admins may
+   grant any role on any subteam; leads only on subteams they lead.
 8. Browsers cannot write to tables. All writes are database functions that check permissions.
 9. `dev` and the persona switcher exist only on the mock.
 

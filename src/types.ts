@@ -67,6 +67,8 @@ export interface Invitation {
   email: string;
   name: string;
   invitedBy: PersonRef | null;
+  /** Subteam roles granted automatically when they sign up (subteam id -> role). */
+  roles: Record<string, SubteamRole>;
   createdAt: string;
   expiresAt: string;
   acceptedAt: string | null;

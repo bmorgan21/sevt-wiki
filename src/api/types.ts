@@ -62,7 +62,8 @@ export interface WikiApi {
 
   invitations: {
     list(): Promise<Invitation[]>;                     // RLS: admins see all, others see their own
-    create(email: string, name: string): Promise<Invitation>; // rpc('invite_user')
+    /** Admins may grant any role on any subteam; everyone else only on subteams they lead. */
+    create(email: string, name: string, roles: Record<string, SubteamRole>): Promise<Invitation>; // rpc('invite_user')
     revoke(id: string): Promise<void>;                 // rpc('revoke_invitation')
   };
 

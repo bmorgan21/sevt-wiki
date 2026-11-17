@@ -20,7 +20,7 @@ begin
       'create_folder','rename_folder','delete_folder','admin_set_member_role','admin_set_user_status',
       'admin_set_system_role','admin_set_subteam_restricted','invite_user','revoke_invitation',
       '_require_user','_require_admin','_clean_title','_clean_folder_name','_clean_content','_clean_tags',
-      '_clean_links','_resolve_location','_pages_location_guard','_folders_location_guard','_pages_derive',
+      '_clean_links','_can_assign_role','_clean_invite_roles','_resolve_location','_pages_location_guard','_folders_location_guard','_pages_derive',
       '_invitations_normalize','_write_revision','_auth_users_guard','_handle_new_user'
     ])
   loop

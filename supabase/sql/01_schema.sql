@@ -55,6 +55,9 @@ create table public.invitations (
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null default (now() + interval '30 days'),
   accepted_at timestamptz,
+  -- Subteam roles to grant on sign-up, e.g. {"sub-battery": "editor"}. Validated by invite_user().
+  roles       jsonb not null default '{}'::jsonb,
+  constraint invitations_roles_is_object check (jsonb_typeof(roles) = 'object'),
   constraint invitations_invited_by_fkey foreign key (invited_by) references public.profiles (id) on delete set null
 );
 create unique index invitations_open_email on public.invitations (email) where accepted_at is null;
